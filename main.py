@@ -6,6 +6,7 @@ from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+import time
 
 
 # no modificar
@@ -58,6 +59,7 @@ class UrbanRoutesPage:
     blanket_and_handkerchief_switch = (By.CLASS_NAME, 'switch')
     blanket_and_handkerchief_input = (By.CLASS_NAME, 'switch-input')
     add_ice_cream_button = (By.CLASS_NAME, 'counter-plus')
+    search_taxi = (By.CLASS_NAME, 'smart-button')
 
 
     def __init__(self, driver):
@@ -152,7 +154,7 @@ class UrbanRoutesPage:
         self.get_add_card_button().click()
 
     def get_card_number_field(self):
-        return  WebDriverWait(self.driver, 10).until(
+        return  WebDriverWait(self.driver, 5).until(
             expected_conditions.presence_of_element_located(self.card_number_field)
         )
 
@@ -205,7 +207,7 @@ class UrbanRoutesPage:
         self.get_driver_message_label().click()
 
     def get_blanket_and_handkerchief_switch(self):
-        return WebDriverWait(self.driver, 5).until(
+        return WebDriverWait(self.driver, 15).until(
             expected_conditions.element_to_be_clickable(self.blanket_and_handkerchief_switch)
         )
 
@@ -216,13 +218,32 @@ class UrbanRoutesPage:
         return self.driver.find_element(*self.blanket_and_handkerchief_input)
 
     def get_add_ice_cream_button(self):
-        return WebDriverWait(self.driver, 5).until(
+        return WebDriverWait(self.driver, 15).until(
             expected_conditions.element_to_be_clickable(self.add_ice_cream_button)
         )
 
     def set_ice_cream(self, ice_cream_number):
         for i in range (ice_cream_number):
             self.get_add_ice_cream_button().click()
+
+    def get_search_taxi(self):
+        return WebDriverWait(self.driver, 10).until(
+            expected_conditions.element_to_be_clickable(self.search_taxi)
+        )
+
+    def set_search_taxi(self):
+        WebDriverWait(self.driver, 10).until(
+            expected_conditions.element_to_be_clickable(UrbanRoutesPage.search_taxi)
+        )
+
+        pedir_taxi = self.get_search_taxi()
+
+        self.driver.execute_script("arguments[0].scrollIntoView(true);", pedir_taxi)
+        WebDriverWait(self.driver, 10).until(
+            expected_conditions.element_to_be_clickable(self.search_taxi)
+        )
+        self.driver.execute_script("arguments[0].click();", pedir_taxi)
+
 
 class TestUrbanRoutes:
 
@@ -246,11 +267,13 @@ class TestUrbanRoutes:
 
     def test_request_taxi(self):
         routes_page = UrbanRoutesPage(self.driver)
+        self.test_set_route()
         routes_page.set_request_taxi_button()
         routes_page.set_comfort_icon()
 
     def test_enter_phone_number(self):
         routes_page = UrbanRoutesPage(self.driver)
+        self.test_request_taxi()
         routes_page.click_on_phone_number_button()
         routes_page.set_phone_number(data.phone_number)
         routes_page.click_on_next_button()
@@ -261,6 +284,7 @@ class TestUrbanRoutes:
 
     def test_enter_payment_method(self):
         routes_page = UrbanRoutesPage(self.driver)
+        self.test_enter_phone_number()
         routes_page.click_on_payment_method_button()
         routes_page.click_on_add_card_button()
         routes_page.set_card_number()
@@ -273,18 +297,29 @@ class TestUrbanRoutes:
 
     def test_send_message_to_the_driver(self):
         routes_page = UrbanRoutesPage(self.driver)
+        self.test_enter_payment_method()
         routes_page.click_on_driver_message_label()
         routes_page.set_driver_message(data.message_for_driver)
         assert routes_page.get_driver_message_field().get_property('value') == data.message_for_driver
 
     def test_add_blanket_and_handkerchief(self):
         routes_page = UrbanRoutesPage(self.driver)
+        self.test_send_message_to_the_driver()
         routes_page.set_blanket_and_handkerchief_switch()
-        assert routes_page.get_blanket_and_handkerchief_input().get_property('checked')
+        assert routes_page.get_blanket_and_handkerchief_input().is_enabled()
 
     def test_order_two_ice_cream(self):
         routes_page = UrbanRoutesPage(self.driver)
+        self.test_add_blanket_and_handkerchief()
         routes_page.set_ice_cream(2)
+        assert routes_page.get_blanket_and_handkerchief_input().is_enabled()
+
+    def test_search_taxi(self):
+        self.test_order_two_ice_cream()
+        route_page = UrbanRoutesPage(self.driver)
+        pedir_taxi = route_page.get_search_taxi()
+        assert pedir_taxi.is_enabled()
+        route_page.set_search_taxi()
 
     @classmethod
     def teardown_class(cls):
